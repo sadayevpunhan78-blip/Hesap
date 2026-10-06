@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hesap Makinesi</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#2f6f8f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hesap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232f6f8f'/%3E%3Crect x='18' y='16' width='64' height='22' rx='5' fill='%23fff'/%3E%3Ccircle cx='30' cy='56' r='7' fill='%23fff'/%3E%3Ccircle cx='50' cy='56' r='7' fill='%23fff'/%3E%3Ccircle cx='70' cy='56' r='7' fill='%23fff'/%3E%3Ccircle cx='30' cy='76' r='7' fill='%23fff'/%3E%3Ccircle cx='50' cy='76' r='7' fill='%23fff'/%3E%3Crect x='63' y='69' width='14' height='14' rx='5' fill='%23e8a317'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--key:#e4e9ee;--keytxt:#1d2733;--op:#2f6f8f;--optxt:#fff;--eq:#e8a317;--eqtxt:#1d2733;--fn:#cfd8e0;--txt:#1d2733;--sub:#6b7a88;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14191e;--panel:#1c232a;--key:#2a343d;--keytxt:#e8edf1;--op:#3d8aae;--fn:#37444f;--txt:#e8edf1;--sub:#8b9aa8}}
+:root[data-theme="dark"]{--bg:#14191e;--panel:#1c232a;--key:#2a343d;--keytxt:#e8edf1;--op:#3d8aae;--fn:#37444f;--txt:#e8edf1;--sub:#8b9aa8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,sans-serif;display:flex;justify-content:center}
+.calc{width:100%;max-width:420px;height:100%;display:flex;flex-direction:column;padding:12px;gap:12px}
+.screen{flex:1;min-height:120px;background:var(--panel);border-radius:20px;padding:16px 20px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;overflow:hidden}
+.hist{color:var(--sub);font-size:1.1rem;min-height:1.5em;word-break:break-all;text-align:right}
+.cur{font-size:3.4rem;font-weight:300;line-height:1.1;word-break:break-all;text-align:right;white-space:nowrap;max-width:100%;overflow-x:auto}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex:0 0 auto}
+button{font:inherit;font-size:1.5rem;border:0;border-radius:18px;height:64px;background:var(--key);color:var(--keytxt);cursor:pointer;transition:transform .08s}
+button:active{transform:scale(.95)}
+button:focus-visible{outline:3px solid var(--eq);outline-offset:2px}
+.fn{background:var(--fn)}.op{background:var(--op);color:var(--optxt)}.eq{background:var(--eq);color:var(--eqtxt);font-weight:600}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+</style>
+</head>
+<body>
+<main class="calc">
+  <div class="screen"><div class="hist" id="hist"></div><div class="cur" id="cur">0</div></div>
+  <div class="keys" id="keys">
+    <button class="fn" data-a="clear">C</button>
+    <button class="fn" data-a="back">⌫</button>
+    <button class="fn" data-a="pct">%</button>
+    <button class="op" data-a="op" data-v="÷">÷</button>
+    <button data-a="num" data-v="7">7</button>
+    <button data-a="num" data-v="8">8</button>
+    <button data-a="num" data-v="9">9</button>
+    <button class="op" data-a="op" data-v="×">×</button>
+    <button data-a="num" data-v="4">4</button>
+    <button data-a="num" data-v="5">5</button>
+    <button data-a="num" data-v="6">6</button>
+    <button class="op" data-a="op" data-v="−">−</button>
+    <button data-a="num" data-v="1">1</button>
+    <button data-a="num" data-v="2">2</button>
+    <button data-a="num" data-v="3">3</button>
+    <button class="op" data-a="op" data-v="+">+</button>
+    <button data-a="sign">±</button>
+    <button data-a="num" data-v="0">0</button>
+    <button data-a="dot">,</button>
+    <button class="eq" data-a="eq">=</button>
+  </div>
+</main>
+<script>
+let cur="0",prev=null,op=null,fresh=false,hist="";
+const cEl=document.getElementById("cur"),hEl=document.getElementById("hist");
+const fmt=s=>{if(s==="Hata")return s;const[n,d]=s.split(".");const neg=n.startsWith("-");const i=(neg?n.slice(1):n).replace(/\B(?=(\d{3})+(?!\d))/g,".");return (neg?"-":"")+i+(d!==undefined?","+d:"")};
+const show=()=>{cEl.textContent=fmt(cur);hEl.textContent=hist};
+const calc=(a,b,o)=>{a=parseFloat(a);b=parseFloat(b);let r=o==="+"?a+b:o==="−"?a-b:o==="×"?a*b:(b===0?NaN:a/b);return isFinite(r)?String(parseFloat(r.toPrecision(12))):"Hata"};
+function num(v){if(cur==="Hata"||fresh){cur="0";fresh=false}cur=cur==="0"?v:cur+v;if(cur.replace(/[-.]/g,"").length>15)cur=cur.slice(0,-1)}
+function setOp(o){if(cur==="Hata")return;if(op&&!fresh){cur=calc(prev,cur,op)}prev=cur;op=o;hist=fmt(cur)+" "+o;fresh=true}
+function act(a,v){
+ if(a==="num")num(v);
+ else if(a==="dot"){if(fresh||cur==="Hata"){cur="0";fresh=false}if(!cur.includes("."))cur+="."}
+ else if(a==="op")setOp(v);
+ else if(a==="eq"){if(op&&prev!==null){const r=calc(prev,cur,op);hist=fmt(prev)+" "+op+" "+fmt(cur)+" =";cur=r;op=null;prev=null;fresh=true}}
+ else if(a==="clear"){cur="0";prev=null;op=null;hist="";fresh=false}
+ else if(a==="back"){if(fresh||cur==="Hata"){cur="0"}else{cur=cur.length>1&&!(cur.length===2&&cur[0]==="-")?cur.slice(0,-1):"0"}}
+ else if(a==="sign"){if(cur!=="0"&&cur!=="Hata")cur=cur.startsWith("-")?cur.slice(1):"-"+cur}
+ else if(a==="pct"){if(cur!=="Hata")cur=String(parseFloat((parseFloat(cur)/100).toPrecision(12)))}
+ show();
+}
+document.getElementById("keys").addEventListener("click",e=>{const b=e.target.closest("button");if(b)act(b.dataset.a,b.dataset.v)});
+document.addEventListener("keydown",e=>{
+ const k=e.key;
+ if(/^\d$/.test(k))act("num",k);
+ else if(k==="."||k===",")act("dot");
+ else if(k==="+")act("op","+");else if(k==="-")act("op","−");
+ else if(k==="*")act("op","×");else if(k==="/"){e.preventDefault();act("op","÷")}
+ else if(k==="Enter"||k==="=")act("eq");
+ else if(k==="Backspace")act("back");
+ else if(k==="Escape")act("clear");
+ else if(k==="%")act("pct");
+});
+show();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
